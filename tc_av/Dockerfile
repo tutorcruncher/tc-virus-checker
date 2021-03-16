@@ -1,15 +1,14 @@
-FROM python:3.9-alpine
+FROM python:3.8-alpine
 
-RUN apk --update --no-cache add gcc g++ musl-dev zlib-dev libuv cffi \
- && apt-get clamav clamav-daemon
+RUN apk --update --no-cache add gcc g++ musl-dev zlib-dev libuv clamav clamav-daemon libffi-dev \
  && rm -rf /var/cache/apk/*
 
-ADD ./requirements.txt /home/root/requirements.txt
-RUN pip install -r /home/root/requirements.txt
+ADD ./requirements.txt /home/app/requirements.txt
+RUN pip install -r /home/app/requirements.txt
 
 ADD ./app /home/root/app
-ADD ./run.py /home/root/run.py
+ADD run.py /home/root/run.py
 
 ENV PYTHONUNBUFFERED 1
 WORKDIR /home/root
-CMD ["python ./run.py"]
+CMD ["python",  "./run.py"]
