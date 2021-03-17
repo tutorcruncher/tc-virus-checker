@@ -19,6 +19,7 @@ tc_av_app = FastAPI()
 settings = Settings()
 
 logger = logging.getLogger('tc-av')
+os.mkdir('tmp')
 
 
 if dsn := settings.raven_dsn:
@@ -51,7 +52,7 @@ async def check_document(data: DocumentRequest):
     payload_sig = hmac.new(settings.tc_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
     if not compare_digest(payload_sig, data.signature):
         raise HTTPException(status_code=403, detail='Invalid signature')
-    file_path = f'tmp/{data.key}'
+    file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
     output = subprocess.run(f'clamdscan {file_path}', shell=True, stdout=subprocess.PIPE).stdout.decode()
 
