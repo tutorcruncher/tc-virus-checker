@@ -48,7 +48,7 @@ def test_check_clean_file(client, monkeypatch):
     sig = hmac.new(settings.tc_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
     r = client.post('/check/', json={'signature': sig, **payload})
     assert r.status_code == 200
-    assert r.json() == {'message': 'OK'}
+    assert r.json() == {'status': 'clean'}
 
 
 def test_check_infected_file(client, monkeypatch):
@@ -58,4 +58,4 @@ def test_check_infected_file(client, monkeypatch):
     sig = hmac.new(settings.tc_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
     r = client.post('/check/', json={'signature': sig, **payload})
     assert r.status_code == 200
-    assert r.json() == {'message': 'Virus found'}
+    assert r.json() == {'status': 'infected'}
