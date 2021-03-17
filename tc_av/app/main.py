@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic.main import BaseModel
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
-from tc_av.app.settings import Settings
+from .settings import Settings
 
 tc_av_app = FastAPI()
 settings = Settings()
@@ -59,9 +59,11 @@ async def check_document(data: DocumentRequest):
     if virus_msg.group(1) == 'OK':
         logger.info('File %s checked and is clean.', data.key)
         tags = [{'Key': 'status', 'Value': 'clean'}]
+        status = 'OK'
     else:
         logger.info('Virus "%s" discovered when checking %s. Quarantining file in AWS.', virus_msg, data.key)
         tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
+        status = 'Virus found'
     s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
     os.remove(file_path)
-    return {'message': 'OK' if tags['status'] == 'clean' else 'Virus found'}
+    return {'message': status}

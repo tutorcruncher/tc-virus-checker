@@ -1,0 +1,3 @@
+build:
+  docker:
+    web: tc_av/Dockerfile

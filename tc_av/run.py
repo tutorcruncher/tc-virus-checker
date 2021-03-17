@@ -2,8 +2,8 @@ import os
 
 import uvicorn
 
-from tc_av.app.logs import setup_logging
-from tc_av.app.main import tc_av_app
+from app.logs import setup_logging
+from app.main import tc_av_app
 
 if __name__ == '__main__':
     setup_logging()
