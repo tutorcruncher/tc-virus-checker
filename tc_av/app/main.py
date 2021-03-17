@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic.main import BaseModel
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
-from tc_av.app.settings import Settings
+from .settings import Settings
 
 tc_av_app = FastAPI()
 settings = Settings()
