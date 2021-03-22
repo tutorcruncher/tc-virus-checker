@@ -47,7 +47,7 @@ class DocumentRequest(BaseModel):
 
 @tc_av_app.post('/check/')
 async def check_document(data: DocumentRequest):
-    payload_sig = hmac.new(settings.tc_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
+    payload_sig = hmac.new(settings.shared_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
     if not compare_digest(payload_sig, data.signature):
         raise HTTPException(status_code=403, detail='Invalid signature')
     if settings.aws_secret_access_key and settings.aws_access_key_id:
@@ -60,6 +60,7 @@ async def check_document(data: DocumentRequest):
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
     output = subprocess.run(f'clamdscan {file_path}', shell=True, stdout=subprocess.PIPE).stdout.decode()
 
+    print(output)
     virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
     if virus_msg == 'OK':
         logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)

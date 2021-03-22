@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - '**'
+  pull_request: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: set up python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.9'
+
+    - name: install dependencies
+      run: |
+        sudo apt install systemd clamav clamav-daemon
+        sudo systemctl stop clamav-daemon.service
+        sudo rm /var/log/clamav/freshclam.log
+        sudo systemctl start clamav-daemon.service
+        sudo freshclam
+        sudo service clamav-daemon restart
+        sudo freshclam
+        make install
+        pip freeze
+    - name: lint
+      run: make lint
+
+    - name: Wait for clamd service to start
+      uses: jakejarvis/wait-action@v0.1.0
+      with:
+        time: '120s'
+
+    - run: sudo service clamav-daemon status
+
+    - name: test
+      run: make test
+
+    - name: codecov
+      run: bash <(curl -s https://codecov.io/bash)
+      env:
+        CODECOV_TOKEN: 'ee51eef9-8de5-4855-9be4-a5cf55257a73'

@@ -1,7 +1,6 @@
 import os
 
 import uvicorn
-
 from app.logs import setup_logging
 from app.main import tc_av_app
 
