@@ -22,7 +22,9 @@ jobs:
 
     - name: install dependencies
       run: |
-        sudo apt install clamav clamav-daemon
+        sudo apt install systemd clamav clamav-daemon
+        sudo systemctl stop clamav-daemon
+        sudo systemctl start clamav-daemon
         make install
         pip freeze
     - name: lint
