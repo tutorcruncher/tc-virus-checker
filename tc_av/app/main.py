@@ -47,7 +47,7 @@ class DocumentRequest(BaseModel):
 
 @tc_av_app.post('/check/')
 async def check_document(data: DocumentRequest):
-    payload_sig = hmac.new(settings.tc_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
+    payload_sig = hmac.new(settings.shared_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
     if not compare_digest(payload_sig, data.signature):
         raise HTTPException(status_code=403, detail='Invalid signature')
     if settings.aws_secret_access_key and settings.aws_access_key_id:

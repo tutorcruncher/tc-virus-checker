@@ -6,7 +6,7 @@ from tc_av.app.main import settings
 
 @pytest.fixture
 def test_settings(monkeypatch):
-    monkeypatch.setattr(settings, 'tc_secret_key', 'test_tc_api_key')
+    monkeypatch.setattr(settings, 'shared_secret_key', 'test_tc_api_key')
     monkeypatch.setattr(settings, 'aws_access_key_id', 'test_aws_access_key')
     monkeypatch.setattr(settings, 'aws_secret_access_key', 'test_aws_secret_secret')
 
