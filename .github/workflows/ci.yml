@@ -22,7 +22,7 @@ jobs:
 
     - name: install dependencies
       run: |
-        apt-get clamav clamav-daemon
+        apt install clamav clamav-daemon
         make install
         pip freeze
     - name: lint
