@@ -23,12 +23,6 @@ jobs:
     - name: install dependencies
       run: |
         sudo apt install systemd clamav clamav-daemon
-        sudo systemctl stop clamav-daemon.service
-        sudo rm /var/log/clamav/freshclam.log
-        sudo systemctl start clamav-daemon.service
-        sudo freshclam
-        sudo service clamav-daemon restart
-        sudo freshclam
         make install
         pip freeze
     - name: lint
