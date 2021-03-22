@@ -16,8 +16,3 @@ def client(test_settings):
     from tc_av.app.main import tc_av_app
 
     yield TestClient(tc_av_app)
-
-
-@pytest.fixture
-def s3_client():
-    pass
