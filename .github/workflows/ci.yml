@@ -22,7 +22,13 @@ jobs:
 
     - name: install dependencies
       run: |
-        sudo apt install clamav clamav-daemon
+        sudo apt install systemd clamav clamav-daemon
+        sudo systemctl stop clamav-daemon.service
+        sudo rm /var/log/clamav/freshclam.log
+        sudo systemctl start clamav-daemon.service
+        sudo freshclam
+        sudo service clamav-daemon restart
+        sudo freshclam
         make install
         pip freeze
     - name: lint
@@ -31,7 +37,9 @@ jobs:
     - name: Wait for clamd service to start
       uses: jakejarvis/wait-action@v0.1.0
       with:
-        time: '60s'
+        time: '120s'
+
+    - run: sudo service clamav-daemon status
 
     - name: test
       run: make test
