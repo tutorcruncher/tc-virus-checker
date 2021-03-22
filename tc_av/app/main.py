@@ -19,16 +19,15 @@ tc_av_app = FastAPI()
 settings = Settings()
 
 logger = logging.getLogger('tc-av')
+try:
+    os.mkdir('tmp')
+except FileExistsError:
+    pass
 
 
 if dsn := settings.raven_dsn:
     sentry_sdk.init(dsn=dsn)
     tc_av_app.add_middleware(SentryAsgiMiddleware)
-
-
-s3_client = boto3.client(
-    's3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key
-)
 
 
 @tc_av_app.get('/')
@@ -51,17 +50,25 @@ async def check_document(data: DocumentRequest):
     payload_sig = hmac.new(settings.tc_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
     if not compare_digest(payload_sig, data.signature):
         raise HTTPException(status_code=403, detail='Invalid signature')
-    file_path = f'tmp/{data.key}'
+    if settings.aws_secret_access_key and settings.aws_access_key_id:
+        s3_client = boto3.client(
+            's3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key
+        )
+    else:
+        return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
+    file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
     output = subprocess.run(f'clamdscan {file_path}', shell=True, stdout=subprocess.PIPE).stdout.decode()
 
-    virus_msg = re.search(fr'{file_path}: (.*?)\n', output)
-    if virus_msg.group(1) == 'OK':
-        logger.info('File %s checked and is clean.', data.key)
+    virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
+    if virus_msg == 'OK':
+        logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
         tags = [{'Key': 'status', 'Value': 'clean'}]
         status = 'clean'
     else:
-        logger.info('Virus "%s" discovered when checking %s. Quarantining file in AWS.', virus_msg, data.key)
+        logger.info(
+            'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, data.key
+        )
         tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
         status = 'infected'
     s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})

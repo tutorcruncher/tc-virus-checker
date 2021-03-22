@@ -1,2 +1,2 @@
--r tc-virus-checker/requirements.txt
+-r tc_av/requirements.txt
 -r tests/requirements.txt

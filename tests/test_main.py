@@ -4,7 +4,9 @@ import json
 import os
 from pathlib import Path
 
-from tc_av.app.main import s3_client, settings
+import boto3
+
+from tc_av.app.main import settings
 
 
 def test_index(client):
@@ -13,20 +15,23 @@ def test_index(client):
     assert r.json() == {'message': "Welcome to TutorCruncher's virus checker"}
 
 
-def download_file(Bucket, Key, Filename):
-    with open(Key) as f:
-        content = f.read()
-    new_dir = '/'.join(Filename.split('/')[:-1])
-    try:
-        os.makedirs(new_dir)
-    except FileExistsError:
+class MockClient:
+    def __init__(self, *args, **kwargs):
         pass
-    with open(Filename, 'w+') as f:
-        f.write(content)
 
+    def download_file(self, Bucket, Key, Filename):
+        with open(Key) as f:
+            content = f.read()
+        new_dir = '/'.join(Filename.split('/')[:-1])
+        try:
+            os.makedirs(new_dir)
+        except FileExistsError:
+            pass
+        with open(Filename, 'w+') as f:
+            f.write(content)
 
-def put_object_tagging(**kwargs):
-    pass
+    def put_object_tagging(self, **kwargs):
+        pass
 
 
 def test_check_no_sig(client):
@@ -41,9 +46,13 @@ def test_check_wrong_sig(client):
     assert r.status_code == 403
 
 
+class MockBoto3:
+    def client(self, *args, **kwargs):
+        return MockClient()
+
+
 def test_check_clean_file(client, monkeypatch):
-    monkeypatch.setattr(s3_client, 'download_file', download_file)
-    monkeypatch.setattr(s3_client, 'put_object_tagging', put_object_tagging)
+    monkeypatch.setattr(boto3, 'client', MockClient)
     payload = {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'}
     sig = hmac.new(settings.tc_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
     r = client.post('/check/', json={'signature': sig, **payload})
@@ -52,8 +61,7 @@ def test_check_clean_file(client, monkeypatch):
 
 
 def test_check_infected_file(client, monkeypatch):
-    monkeypatch.setattr(s3_client, 'download_file', download_file)
-    monkeypatch.setattr(s3_client, 'put_object_tagging', put_object_tagging)
+    monkeypatch.setattr(boto3, 'client', MockClient)
     payload = {'bucket': 'aws_bucket', 'key': 'tests/files/infected_file'}
     sig = hmac.new(settings.tc_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
     r = client.post('/check/', json={'signature': sig, **payload})
