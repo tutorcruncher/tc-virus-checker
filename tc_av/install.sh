@@ -15,6 +15,7 @@ apt-get -y install python3.8 python3.8-dev python3.8-venv
 apt-get -y install python3-distutils
 apt-get -y install clamav clamav-daemon
 apt-get -y autoremove
+mkdir tmp/
 
 rm /usr/bin/python3
 ln -s /usr/bin/python3.8 /usr/bin/python3
