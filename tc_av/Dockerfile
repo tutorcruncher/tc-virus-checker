@@ -1,6 +1,6 @@
 FROM python:3.8-alpine
 
-RUN apk --update --no-cache add gcc g++ musl-dev zlib-dev libuv clamav clamav-daemon libffi-dev bash \
+RUN apk --update --no-cache add gcc g++ musl-dev zlib-dev libuv clamav clamav-daemon systemd libffi-dev bash \
  && rm -rf /var/cache/apk/* \
  && rm /bin/sh && ln -s /bin/bash /bin/sh
 
