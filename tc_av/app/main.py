@@ -32,7 +32,8 @@ if dsn := settings.raven_dsn:
 
 @tc_av_app.get('/')
 async def index():
-    return {'message': "Welcome to TutorCruncher's virus checker"}
+    output = subprocess.run(f'service clamav-daemon status', shell=True, stdout=subprocess.PIPE).stdout.decode()
+    return {'message': output}
 
 
 class DocumentRequest(BaseModel):
