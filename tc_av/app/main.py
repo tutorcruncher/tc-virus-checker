@@ -59,7 +59,9 @@ async def check_document(data: DocumentRequest):
         return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
     file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
-    output = subprocess.run(f'clamdscan {file_path}', shell=True, stdout=subprocess.PIPE).stdout.decode()
+    output = subprocess.run(
+        f'clamdscan --file-config=clamav/clamd.conf {file_path}', shell=True, stdout=subprocess.PIPE
+    ).stdout.decode()
 
     virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
     if virus_msg == 'OK':
