@@ -1,4 +1,3 @@
 clamav
 clamav-daemon
-dpkg
-debconf
+clamav-freshclam
