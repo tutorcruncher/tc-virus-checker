@@ -60,9 +60,9 @@ async def check_document(data: DocumentRequest):
     file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
     output = subprocess.run(
-        f'clamdscan --file-config=clamav/clamd.conf {file_path}', shell=True, stdout=subprocess.PIPE
+        f'clamdscan --config-file=clamav/clamd.conf {file_path}', shell=True, stdout=subprocess.PIPE
     ).stdout.decode()
-
+    print(output)
     virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
     if virus_msg == 'OK':
         logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
