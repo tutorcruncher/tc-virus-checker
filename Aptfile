@@ -1,2 +1,4 @@
 clamav
 clamav-daemon
+dpkg
+debconf
