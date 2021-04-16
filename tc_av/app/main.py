@@ -18,7 +18,7 @@ from .settings import Settings
 tc_av_app = FastAPI()
 settings = Settings()
 
-logger = logging.getLogger('tc-av')
+logger = logging.getLogger('tcav')
 try:
     os.mkdir('tmp')
 except FileExistsError:
@@ -32,8 +32,7 @@ if dsn := settings.raven_dsn:
 
 @tc_av_app.get('/')
 async def index():
-    output = subprocess.run(f'service clamav-daemon status', shell=True, stdout=subprocess.PIPE).stdout.decode()
-    return {'message': output}
+    return {'message': "Welcome to TutorCruncher's virus checker"}
 
 
 class DocumentRequest(BaseModel):
@@ -59,7 +58,12 @@ async def check_document(data: DocumentRequest):
         return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
     file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
-    output = subprocess.run(f'clamdscan {file_path}', shell=True, stdout=subprocess.PIPE).stdout.decode()
+
+    if settings.live:
+        cmd = f'clamdscan --config-file=clamav/clamd.conf {file_path}'
+    else:
+        cmd = f'clamdscan {file_path}'
+    output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
 
     virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
     if virus_msg == 'OK':

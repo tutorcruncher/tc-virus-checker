@@ -10,13 +10,13 @@ def setup_logging(verbose: bool = False):
     config = {
         'version': 1,
         'disable_existing_loggers': False,
-        'formatters': {'tc-av': {'format': '%(levelname)s %(name)s %(message)s'}},
+        'formatters': {'tcav': {'format': '%(levelname)s %(name)s %(message)s'}},
         'handlers': {
-            'tc-av': {'level': log_level, 'class': 'logging.StreamHandler', 'formatter': 'tc-av'},
+            'tcav': {'level': log_level, 'class': 'logging.StreamHandler', 'formatter': 'tcav'},
             'sentry': {'level': 'WARNING', 'class': 'sentry_sdk.integrations.logging.SentryHandler'},
         },
         'loggers': {
-            'tc-av': {'handlers': ['tc-av', 'sentry'], 'level': log_level},
+            'tcav': {'handlers': ['tcav', 'sentry'], 'level': log_level},
             'uvicorn.error': {'handlers': ['sentry'], 'level': 'ERROR'},
         },
     }
