@@ -4,3 +4,5 @@ fastapi==0.63.0
 pydantic==1.8.1
 sentry-sdk==1.0.0
 uvicorn==0.13.4
+redis==3.5.3
+rq==1.8.0
