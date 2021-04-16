@@ -11,8 +11,6 @@ import boto3
 import sentry_sdk
 from fastapi import FastAPI, HTTPException
 from pydantic.main import BaseModel
-from redis import Redis
-from rq import Queue
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 
 from .settings import Settings
@@ -20,7 +18,7 @@ from .settings import Settings
 tc_av_app = FastAPI()
 settings = Settings()
 
-logger = logging.getLogger('tc-av')
+logger = logging.getLogger('tcav')
 try:
     os.mkdir('tmp')
 except FileExistsError:
