@@ -65,17 +65,22 @@ async def check_document(data: DocumentRequest):
         cmd = f'clamdscan {file_path}'
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
 
-    virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
-    if virus_msg == 'OK':
-        logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
-        tags = [{'Key': 'status', 'Value': 'clean'}]
-        status = 'clean'
+    try:
+        virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
+    except AttributeError:
+        logger.error('No virus msg found in output, file_path: "%s", output: "%s"', file_path, output)
+        status = 'error'
     else:
-        logger.info(
-            'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, data.key
-        )
-        tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
-        status = 'infected'
-    s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
+        if virus_msg == 'OK':
+            logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
+            tags = [{'Key': 'status', 'Value': 'clean'}]
+            status = 'clean'
+        else:
+            logger.info(
+                'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, data.key
+            )
+            tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
+            status = 'infected'
+        s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
     os.remove(file_path)
     return {'status': status}
