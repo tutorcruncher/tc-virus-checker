@@ -68,7 +68,7 @@ async def check_document(data: DocumentRequest):
     try:
         virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
     except AttributeError:
-        logger.error('No virus msg found in output, file_path: "%s", output: %s', file_path, output)
+        logger.error('No virus msg found in output, file_path: "%s", output: "%s"', file_path, output)
         status = 'error'
     else:
         if virus_msg == 'OK':
