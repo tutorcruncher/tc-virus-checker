@@ -18,7 +18,7 @@ from .settings import Settings
 tc_av_app = FastAPI()
 settings = Settings()
 
-logger = logging.getLogger('tc-av')
+logger = logging.getLogger('tcav')
 try:
     os.mkdir('tmp')
 except FileExistsError:
@@ -58,21 +58,30 @@ async def check_document(data: DocumentRequest):
         return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
     file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
-    output = subprocess.run(f'clamdscan {file_path}', shell=True, stdout=subprocess.PIPE).stdout.decode()
 
-    print(output)
-    virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
-    if virus_msg == 'OK':
-        logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
-        tags = [{'Key': 'status', 'Value': 'clean'}]
-        status = 'clean'
+    if settings.live:
+        cmd = f'clamdscan --config-file=clamav/clamd.conf {file_path}'
     else:
-        logger.info(
-            'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, data.key
-        )
-        tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
-        status = 'infected'
-    s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
+        cmd = f'clamdscan {file_path}'
+    output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
+
+    try:
+        virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
+    except AttributeError:
+        logger.error('No virus msg found in output, file_path: "%s", output: "%s"', file_path, output)
+        status = 'error'
+    else:
+        if virus_msg == 'OK':
+            logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
+            tags = [{'Key': 'status', 'Value': 'clean'}]
+            status = 'clean'
+        else:
+            logger.info(
+                'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, data.key
+            )
+            tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
+            status = 'infected'
+        s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
     try:
         os.remove(file_path)
     except FileNotFoundError:
