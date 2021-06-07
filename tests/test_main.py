@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import os
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -47,11 +48,6 @@ def test_check_wrong_sig(client):
     assert r.status_code == 403
 
 
-class MockBoto3:
-    def client(self, *args, **kwargs):
-        return MockClient()
-
-
 def test_check_clean_file(client, monkeypatch):
     monkeypatch.setattr(boto3, 'client', MockClient)
     payload = {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'}
@@ -80,3 +76,18 @@ def test_check_removed_file(mock_remove, client, monkeypatch):
         r = client.post('/check/', json={'signature': sig, **payload})
         assert r.status_code == 200
         assert r.json() == {'status': 'File not found'}
+
+
+class MockRun:
+    def __init__(self, *args, **kwargs):
+        self.stdout = b''
+
+
+def test_check_error_file(client, monkeypatch):
+    monkeypatch.setattr(boto3, 'client', MockClient)
+    monkeypatch.setattr(subprocess, 'run', MockRun)
+    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'}
+    sig = hmac.new(settings.shared_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
+    r = client.post('/check/', json={'signature': sig, **payload})
+    assert r.status_code == 200
+    assert r.json() == {'status': 'error'}
