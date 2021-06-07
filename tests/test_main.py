@@ -20,15 +20,18 @@ class MockClient:
         pass
 
     def download_file(self, Bucket, Key, Filename):
-        with open(Key) as f:
-            content = f.read()
-        new_dir = '/'.join(Filename.split('/')[:-1])
         try:
-            os.makedirs(new_dir)
-        except FileExistsError:
+            with open(Key) as f:
+                content = f.read()
+            new_dir = '/'.join(Filename.split('/')[:-1])
+            try:
+                os.makedirs(new_dir)
+            except FileExistsError:
+                pass
+            with open(Filename, 'w+') as f:
+                f.write(content)
+        except FileNotFoundError:
             pass
-        with open(Filename, 'w+') as f:
-            f.write(content)
 
     def put_object_tagging(self, **kwargs):
         pass
@@ -67,3 +70,12 @@ def test_check_infected_file(client, monkeypatch):
     r = client.post('/check/', json={'signature': sig, **payload})
     assert r.status_code == 200
     assert r.json() == {'status': 'infected'}
+
+
+def test_check_removed_file(client, monkeypatch):
+    monkeypatch.setattr(boto3, 'client', MockClient)
+    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/removed_file'}
+    sig = hmac.new(settings.shared_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
+    r = client.post('/check/', json={'signature': sig, **payload})
+    assert r.status_code == 200
+    assert r.json() == {'status': 'File not found'}

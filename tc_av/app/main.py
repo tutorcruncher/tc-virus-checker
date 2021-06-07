@@ -73,5 +73,9 @@ async def check_document(data: DocumentRequest):
         tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
         status = 'infected'
     s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
-    os.remove(file_path)
-    return {'status': status}
+    try:
+        os.remove(file_path)
+    except FileNotFoundError:
+        status = 'File not found'
+    finally:
+        return {'status': status}
