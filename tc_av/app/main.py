@@ -12,6 +12,7 @@ import sentry_sdk
 from fastapi import FastAPI, HTTPException
 from pydantic.main import BaseModel
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+from starlette.responses import FileResponse
 
 from .settings import Settings
 
@@ -33,6 +34,11 @@ if dsn := settings.raven_dsn:
 @tc_av_app.get('/')
 async def index():
     return {'message': "Welcome to TutorCruncher's virus checker"}
+
+
+@tc_av_app.get('/robots.txt')
+async def robots():
+    return FileResponse(path='tc_av/robots.txt', media_type='text/plain')
 
 
 class DocumentRequest(BaseModel):

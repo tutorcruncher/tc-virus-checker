@@ -17,6 +17,12 @@ def test_index(client):
     assert r.json() == {'message': "Welcome to TutorCruncher's virus checker"}
 
 
+def test_robots(client):
+    r = client.get('/robots.txt')
+    assert r.status_code == 200
+    assert b'User-agent: *' in r.content
+
+
 class MockClient:
     def __init__(self, *args, **kwargs):
         pass
