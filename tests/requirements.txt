@@ -8,4 +8,4 @@ pycodestyle==2.7.0
 pyflakes==2.3.0
 pytest==6.2.2
 pytest-cov==2.11.1
-pytest-sugar==0.9.3
+pytest-sugar==0.9.4
