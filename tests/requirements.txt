@@ -5,7 +5,7 @@ isort==5.8.0
 requests==2.25.1
 devtools==0.6.1
 pycodestyle==2.7.0
-pyflakes==2.3.0
+pyflakes==2.4.0
 pytest==6.2.2
 pytest-cov==2.11.1
 pytest-sugar==0.9.3
