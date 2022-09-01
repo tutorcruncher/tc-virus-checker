@@ -2,6 +2,6 @@ boto3==1.24.64
 cffi==1.15.1
 fastapi==0.81.0
 pydantic==1.10.1
-sentry-sdk==1.9.0
+sentry-sdk==1.9.6
 uvicorn==0.18.3
 aiofiles==0.8.0
