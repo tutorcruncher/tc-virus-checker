@@ -43,20 +43,20 @@ class MockClient:
 
 
 def test_check_no_sig(client):
-    r = client.post('/check/', json={'bucket': 'aws_bucket', 'key': str(Path('files/cleaned_file'))})
+    r = client.post('/check/', json={'bucket': 'aws_bucket', 'key': str(Path('files/clean_file'))})
     assert r.status_code == 422
 
 
 def test_check_wrong_sig(client):
     r = client.post(
-        '/check/', json={'bucket': 'aws_bucket', 'key': str(Path('files/cleaned_file')), 'signature': 'wrong'}
+        '/check/', json={'bucket': 'aws_bucket', 'key': str(Path('files/clean_file')), 'signature': 'wrong'}
     )
     assert r.status_code == 403
 
 
 def test_check_clean_file(client, monkeypatch):
     monkeypatch.setattr(boto3, 'client', MockClient)
-    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/cleaned_file'}
+    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'}
     sig = hmac.new(settings.shared_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
     r = client.post('/check/', json={'signature': sig, **payload})
     assert r.status_code == 200
@@ -92,7 +92,7 @@ class MockRun:
 def test_check_error_file(client, monkeypatch):
     monkeypatch.setattr(boto3, 'client', MockClient)
     monkeypatch.setattr(subprocess, 'run', MockRun)
-    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/cleaned_file'}
+    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'}
     sig = hmac.new(settings.shared_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
     r = client.post('/check/', json={'signature': sig, **payload})
     assert r.status_code == 200
