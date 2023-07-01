@@ -1,5 +1,5 @@
 aiofiles==22.1.0
-boto3==1.26.144
+boto3==1.26.165
 cffi==1.15.1
 fastapi==0.95.2
 httpx==0.24.1
