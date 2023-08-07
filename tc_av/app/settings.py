@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     aws_secret_access_key: Optional[str] = None
     live: bool = False
 
-    class Config:
+    class ConfigDict:
         fields = {
             'shared_secret_key': {'env': 'SHARED_SECRET_KEY'},
             'raven_dsn': {'env': 'RAVEN_DSN'},
