@@ -20,6 +20,9 @@ jobs:
       with:
         python-version: '3.9'
 
+    - name: Update apt
+      run: sudo apt-get update
+
     - name: install dependencies
       run: |
         sudo apt install systemd clamav clamav-daemon
