@@ -2,7 +2,7 @@ aiofiles==23.2.1
 boto3==1.28.39
 cffi==1.15.1
 fastapi==0.103.0
-httpx==0.24.1
+httpx==0.25.0
 pydantic==2.3.0
 pydantic-settings===2.0.3
 sentry-sdk==1.30.0
