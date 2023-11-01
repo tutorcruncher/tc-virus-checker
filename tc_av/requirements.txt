@@ -1,7 +1,7 @@
 aiofiles==23.2.1
 boto3==1.28.57
 cffi==1.16.0
-fastapi==0.103.2
+fastapi==0.104.1
 httpx==0.25.0
 pydantic==2.4.2
 pydantic-settings===2.0.3
