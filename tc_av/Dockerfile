@@ -1,7 +1,6 @@
 FROM clamav/clamav:latest
 
 # Install python/pip
-ENV PYTHONUNBUFFERED=1
 RUN apk add python3 py3-pip gcc musl-dev
 RUN pip install --no-cache --upgrade --break-system-packages pip setuptools
 
@@ -10,6 +9,9 @@ run pip install -r /home/root/requirements.txt --break-system-packages
 
 add ./app /home/root/app
 add ./run.py /home/root/run.py
+
+run freshclam
+run clamd
 
 ENV PYTHONUNBUFFERED 1
 workdir /home/root
