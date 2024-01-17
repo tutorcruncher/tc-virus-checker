@@ -10,9 +10,6 @@ run pip install -r /home/root/requirements.txt --break-system-packages
 add ./app /home/root/app
 add ./run.py /home/root/run.py
 
-run freshclam
-run clamd
-
 ENV PYTHONUNBUFFERED 1
 workdir /home/root
 cmd ["python3", "./run.py"]
