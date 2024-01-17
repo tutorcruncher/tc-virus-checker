@@ -1,10 +1,10 @@
 ARG IMPORT_VERSION=v4
 
-FROM https://hub.docker.com/r/tutorcruncher/tc-virus-checker-image/ AS builder
+FROM tutorcruncher/tc-virus-checker-image:latest AS builder
 RUN /render/build-scripts/apply-buildpacks.py ${HEROKU_STACK}
 
 # For running the app, this is the base image
-FROM https://hub.docker.com/r/tutorcruncher/tc-virus-checker-image/ AS runner
+FROM tutorcruncher/tc-virus-checker-image:latest AS runner
 
 # Here we copy your build artifacts from the build image to the runner so that
 # the image that we deploy to Render is smaller and, therefore, can start up
