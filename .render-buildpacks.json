@@ -1,7 +1,5 @@
 {
   "buildpacks": [
-    "heroku/python",
-    "https://buildpack-registry.s3.amazonaws.com/buildpacks/heroku-community/apt.tgz",
-    "https://github.com/riskmethods/heroku-buildpack-clamav.git"
+    "heroku/python"
   ]
 }
