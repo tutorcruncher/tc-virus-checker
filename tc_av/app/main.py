@@ -66,7 +66,7 @@ async def check_document(data: DocumentRequest):
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
 
     if settings.live:
-        cmd = f'clamdscan --config-file=clamav/clamd.conf {file_path}'
+        cmd = f'clamdscan {file_path}'
     else:
         cmd = f'clamdscan --fdpass {file_path}'
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
