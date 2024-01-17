@@ -1,5 +1,6 @@
 ARG IMPORT_VERSION=v4
 
+FROM https://hub.docker.com/r/tutorcruncher/tc-virus-checker-image/ AS builder
 RUN /render/build-scripts/apply-buildpacks.py ${HEROKU_STACK}
 
 # For running the app, this is the base image
