@@ -3,6 +3,7 @@ FROM clamav/clamav:latest
 # Install python/pip
 ENV PYTHONUNBUFFERED=1
 RUN apk add python3 py3-pip gcc musl-dev
+RUN apk add clamav-daemon
 RUN pip install --no-cache --upgrade --break-system-packages pip setuptools
 
 add requirements.txt /home/root/requirements.txt
