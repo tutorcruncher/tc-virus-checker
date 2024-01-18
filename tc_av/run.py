@@ -7,8 +7,10 @@ from app.main import tc_av_app
 
 
 def start_clamd():
-    subprocess.Popen(['clamd'])
-    subprocess.Popen(['freshclam'])
+    output = subprocess.run('clamd', shell=True, stdout=subprocess.PIPE)
+    print('Starting clamd...', output.stdout.decode())
+    output = subprocess.run('freshclam', shell=True, stdout=subprocess.PIPE)
+    print('Running freshclam...', output.stdout.decode())
 
 
 if __name__ == '__main__':
