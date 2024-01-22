@@ -51,7 +51,7 @@ class DocumentRequest(BaseModel):
         return json.dumps({'bucket': self.bucket, 'key': self.key}).encode()
 
 
-def _check_file(file_path) -> tuple[list, str]:
+def _check_file(file_path: str, key: str) -> tuple[list, str]:
     if settings.live:
         cmd = f'clamdscan {file_path}'
     else:
@@ -65,12 +65,12 @@ def _check_file(file_path) -> tuple[list, str]:
         status = 'error'
     else:
         if virus_msg == 'OK':
-            logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', data.key)
+            logger.info('File %s checked and is clean. Tagging file with status=clean in AWS.', key)
             tags = [{'Key': 'status', 'Value': 'clean'}]
             status = 'clean'
         else:
             logger.info(
-                'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, data.key
+                'Virus "%s" discovered when checking %s. Tagging file with status=infected in AWS.', virus_msg, key
             )
             tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
             status = 'infected'
@@ -91,7 +91,7 @@ async def check_document(data: DocumentRequest):
     file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
 
-    tags, status = _check_file(file_path)
+    tags, status = _check_file(file_path, data.key)
     if tags:
         s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
     try:
@@ -104,5 +104,5 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    _, status = _check_file('/bin/bash')
+    _, status = _check_file('/bin/bash', '/bin/bash')
     return {'status': status}
