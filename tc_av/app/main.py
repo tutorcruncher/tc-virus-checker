@@ -94,3 +94,9 @@ async def check_document(data: DocumentRequest):
         status = 'File not found'
     finally:
         return {'status': status}
+
+
+@tc_av_app.get('/health/')
+async def health():
+    output = subprocess.run('systemctl status clamav-daemon', shell=True, stdout=subprocess.PIPE).stdout.decode()
+    return {'status': output}
