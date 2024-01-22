@@ -70,9 +70,8 @@ async def check_document(data: DocumentRequest):
     else:
         cmd = f'clamdscan --fdpass {file_path}'
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
-
     try:
-        virus_msg = re.search(fr'{file_path}: (.*?)\n', output).group(1)
+        virus_msg = re.search(rf'{file_path}: (.*?)\n', output).group(1)
     except AttributeError:
         logger.error('No virus msg found in output, file_path: "%s", output: "%s"', file_path, output)
         status = 'error'

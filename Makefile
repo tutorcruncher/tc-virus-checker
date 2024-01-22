@@ -5,18 +5,19 @@ isort = isort -w 120
 install:
 	pip install -r requirements.txt
 
-.PHONY: format
-format:
-	$(isort) src
-	$(isort) tests
-	$(black) src tests
+.PHONY: install-test
+install-test: install
+	pip install -r tests/requirements.txt
 
 .PHONY: lint
 lint:
-	flake8 src/ tests/
-	$(isort) --check-only src
-	$(isort) --check-only tests
-	$(black) --check src tests
+	ruff check src/ tests/
+	ruff format src/ tests/ --check
+
+.PHONY: format
+format:
+	ruff check src/ tests/ --fix
+	ruff format src/ tests/
 
 .PHONY: test
 test:

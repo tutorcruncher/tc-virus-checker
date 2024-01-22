@@ -1,0 +1,28 @@
+[tool.ruff]
+    line-length = 120
+
+[tool.ruff.format]
+    quote-style = 'single'
+
+[tool.ruff.isort]
+    combine-as-imports = true
+
+[tool.ruff.lint]
+    extend-select = ['I']
+
+[tool.pytest]
+    testpaths = ['tests']
+
+[tool.coverage.run]
+    source = ['src']
+    branch = true
+
+[tool.coverage.report]
+    precision = 2
+    exclude_lines = [
+        'pragma: no cover',
+        'def __repr__',
+        'def __str__',
+        'raise NotImplementedError',
+        'raise NotImplemented',
+    ]
