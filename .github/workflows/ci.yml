@@ -40,7 +40,7 @@ jobs:
     - name: Wait for clamd service to start
       uses: jakejarvis/wait-action@v0.1.0
       with:
-        time: '120s'
+        time: '5'
 
     - run: sudo service clamav-daemon status
 
@@ -59,12 +59,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-      HEROKU_APP: tc-virus-checker
+      deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 
     steps:
-      - uses: actions/checkout@v2
-      - run: git fetch --unshallow
-      - run: git switch master
-      - run: git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/$HEROKU_APP.git
-      - run: git push heroku master
+      - run: curl "$deploy_url"
