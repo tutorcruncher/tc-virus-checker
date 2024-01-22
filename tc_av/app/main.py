@@ -98,5 +98,5 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    output = subprocess.run('systemctl status clamav-daemon', shell=True, stdout=subprocess.PIPE).stdout.decode()
+    output = subprocess.run('/etc/init.d/clamav-daemon status', shell=True, stdout=subprocess.PIPE).stdout.decode()
     return {'status': output}
