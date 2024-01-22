@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import boto3
 
-from tc_av.app.main import settings
+from src.app.main import settings
 
 
 def test_index(client):
@@ -72,7 +72,7 @@ def test_check_infected_file(client, monkeypatch):
     assert r.json() == {'status': 'infected'}
 
 
-@patch('tc_av.app.main.os.remove')
+@patch('src.app.main.os.remove')
 def test_check_removed_file(mock_remove, client, monkeypatch):
     monkeypatch.setattr(boto3, 'client', MockClient)
     with patch('os.remove') as mock_remove:

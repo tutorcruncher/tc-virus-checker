@@ -1,7 +1,7 @@
 import pytest
 from starlette.testclient import TestClient
 
-from tc_av.app.main import settings
+from src.app.main import settings
 
 
 @pytest.fixture
@@ -13,6 +13,6 @@ def test_settings(monkeypatch):
 
 @pytest.fixture
 def client(test_settings):
-    from tc_av.app.main import tc_av_app
+    from src.app.main import tc_av_app
 
     yield TestClient(tc_av_app)

@@ -7,6 +7,7 @@ from app.main import tc_av_app
 
 
 def start_clamd():
+    os.replace('clamd.conf', '/etc/clamav/clamd.conf')
     output = subprocess.run('clamd', shell=True, stdout=subprocess.PIPE)
     print('Starting clamd...', output.stdout.decode())
     output = subprocess.run('freshclam', shell=True, stdout=subprocess.PIPE)

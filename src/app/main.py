@@ -38,7 +38,7 @@ async def index():
 
 @tc_av_app.get('/robots.txt')
 async def robots():
-    return FileResponse(path='tc_av/robots.txt', media_type='text/plain')
+    return FileResponse(path='src/robots.txt', media_type='text/plain')
 
 
 class DocumentRequest(BaseModel):
