@@ -51,25 +51,13 @@ class DocumentRequest(BaseModel):
         return json.dumps({'bucket': self.bucket, 'key': self.key}).encode()
 
 
-@tc_av_app.post('/check/')
-async def check_document(data: DocumentRequest):
-    payload_sig = hmac.new(settings.shared_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
-    if not compare_digest(payload_sig, data.signature):
-        raise HTTPException(status_code=403, detail='Invalid signature')
-    if settings.aws_secret_access_key and settings.aws_access_key_id:
-        s3_client = boto3.client(
-            's3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key
-        )
-    else:
-        return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
-    file_path = f'tmp/{data.key.replace("/", "-")}'
-    s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
-
+def _check_file(file_path) -> tuple[list, str]:
     if settings.live:
         cmd = f'clamdscan {file_path}'
     else:
         cmd = f'clamdscan --fdpass {file_path}'
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
+    tags = []
     try:
         virus_msg = re.search(rf'{file_path}: (.*?)\n', output).group(1)
     except AttributeError:
@@ -86,6 +74,25 @@ async def check_document(data: DocumentRequest):
             )
             tags = [{'Key': 'status', 'Value': 'infected'}, {'Key': 'virus_name', 'Value': virus_msg}]
             status = 'infected'
+    return tags, status
+
+
+@tc_av_app.post('/check/')
+async def check_document(data: DocumentRequest):
+    payload_sig = hmac.new(settings.shared_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
+    if not compare_digest(payload_sig, data.signature):
+        raise HTTPException(status_code=403, detail='Invalid signature')
+    if settings.aws_secret_access_key and settings.aws_access_key_id:
+        s3_client = boto3.client(
+            's3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key
+        )
+    else:
+        return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
+    file_path = f'tmp/{data.key.replace("/", "-")}'
+    s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
+
+    tags, status = _check_file(file_path)
+    if tags:
         s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
     try:
         os.remove(file_path)
@@ -97,5 +104,5 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    output = subprocess.run('/etc/init.d/clamav-daemon status', shell=True, stdout=subprocess.PIPE).stdout.decode()
-    return {'status': output}
+    _, status = _check_file('/bin/bash/')
+    return {'status': status}
