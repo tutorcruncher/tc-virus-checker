@@ -7,21 +7,21 @@ install:
 
 .PHONY: format
 format:
-	$(isort) tc_av
+	$(isort) src
 	$(isort) tests
-	$(black) tc_av tests
+	$(black) src tests
 
 .PHONY: lint
 lint:
-	flake8 tc_av/ tests/
-	$(isort) --check-only tc_av
+	flake8 src/ tests/
+	$(isort) --check-only src
 	$(isort) --check-only tests
-	$(black) --check tc_av tests
+	$(black) --check src tests
 
 .PHONY: test
 test:
-	pytest --cov=tc_av
+	pytest --cov=src
 
 .PHONY: build
 build:
-	docker build tc_av/ -t tc_av
+	docker build src/ -t src

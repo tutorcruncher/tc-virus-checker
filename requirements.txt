@@ -1,2 +1,2 @@
--r tc_av/requirements.txt
+-r src/requirements.txt
 -r tests/requirements.txt
