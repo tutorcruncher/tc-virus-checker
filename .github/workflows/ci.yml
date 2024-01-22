@@ -58,8 +58,5 @@ jobs:
     if: "success() && startsWith(github.ref, 'refs/tags/')"
     runs-on: ubuntu-latest
 
-    env:
-      deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-
     steps:
-      - run: curl "$deploy_url"
+      - run: curl ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
