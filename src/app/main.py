@@ -104,5 +104,5 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    _, status = _check_file('/bin/bash/')
+    _, status = _check_file('/bin/bash')
     return {'status': status}
