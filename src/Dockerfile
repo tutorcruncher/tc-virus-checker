@@ -1,9 +1,9 @@
-FROM clamav/clamav-debian:1.2.0
-
-RUN apt-get install clamav clamav-daemon clamav-freshclam clamav-unofficial-sigs -y
+FROM heroku/heroku:22
 
 # Install python/pip
 RUN apt-get update && apt-get install -y python3 python3-pip
+
+RUN apt-get install clamav clamav-daemon clamav-freshclam clamav-unofficial-sigs -y
 
 add requirements.txt /home/root/requirements.txt
 
