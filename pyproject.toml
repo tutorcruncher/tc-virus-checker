@@ -4,7 +4,7 @@
 [tool.ruff.format]
     quote-style = 'single'
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
     combine-as-imports = true
 
 [tool.ruff.lint]
