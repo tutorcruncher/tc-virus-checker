@@ -1,6 +1,6 @@
 aiofiles==24.1.0
 boto3==1.35.10
-cffi==1.17.0
+cffi==1.17.1
 fastapi==0.112.2
 httpx==0.27.2
 pydantic==2.8.2
