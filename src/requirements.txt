@@ -5,5 +5,5 @@ fastapi==0.115.6
 httpx==0.28.1
 pydantic==2.10.4
 pydantic-settings===2.7.1
-sentry-sdk==2.19.2
+sentry-sdk==2.20.0
 uvicorn==0.34.0
