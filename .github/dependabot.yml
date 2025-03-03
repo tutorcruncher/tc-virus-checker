@@ -7,3 +7,7 @@ updates:
   open-pull-requests-limit: 15
   labels:
     - 'dependencies'
+  groups:
+    python-packages:
+      patterns:
+        - "*"
