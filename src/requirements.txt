@@ -1,9 +1,9 @@
-aiofiles==24.1.0
-boto3==1.40.42
+aiofiles==25.1.0
+boto3==1.40.64
 cffi==2.0.0
-fastapi==0.118.0
+fastapi==0.120.4
 httpx==0.28.1
-pydantic==2.11.9
+pydantic==2.12.3
 pydantic-settings===2.11.0
-sentry-sdk==2.39.0
-uvicorn==0.37.0
+sentry-sdk==2.43.0
+uvicorn==0.38.0
