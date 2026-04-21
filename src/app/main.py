@@ -153,5 +153,7 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    _, status = _check_file('/bin/bash', '/bin/bash')
-    return {'status': status}
+    result = subprocess.run(['clamdscan', '--ping', '1'], capture_output=True)
+    if result.returncode != 0:
+        raise HTTPException(status_code=503, detail='clamd is not responding')
+    return {'status': 'ok'}

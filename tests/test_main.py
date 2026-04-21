@@ -132,6 +132,26 @@ class MockRun:
         self.stdout = b''
 
 
+class MockSubprocessResult:
+    def __init__(self, returncode):
+        self.returncode = returncode
+        self.stdout = b''
+        self.stderr = b''
+
+
+def test_health_ok(client, monkeypatch):
+    monkeypatch.setattr(subprocess, 'run', lambda *a, **k: MockSubprocessResult(0))
+    r = client.get('/health/')
+    assert r.status_code == 200
+    assert r.json() == {'status': 'ok'}
+
+
+def test_health_clamd_down(client, monkeypatch):
+    monkeypatch.setattr(subprocess, 'run', lambda *a, **k: MockSubprocessResult(2))
+    r = client.get('/health/')
+    assert r.status_code == 503
+
+
 def test_check_error_file(client, monkeypatch):
     monkeypatch.setattr(boto3, 'client', MockClient)
     monkeypatch.setattr(subprocess, 'run', MockRun)
