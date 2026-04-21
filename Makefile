@@ -1,28 +1,18 @@
-black = black -S -l 120
-isort = isort -w 120
-
 .PHONY: install
 install:
-	pip install -r requirements.txt
-
-.PHONY: install-test
-install-test: install
-	pip install -r tests/requirements.txt
-
-.PHONY: lint
-lint:
-	ruff check src/ tests/
-	ruff format src/ tests/ --check
+	uv sync --dev
 
 .PHONY: format
 format:
-	ruff check src/ tests/ --fix
-	ruff format src/ tests/
+	uv run ruff check . --fix
+	uv run ruff format .
+
+.PHONY: lint
+lint:
+	uv run ruff check .
+	uv run ruff format --check .
+	uv run ty check .
 
 .PHONY: test
 test:
-	pytest --cov=src
-
-.PHONY: build
-build:
-	docker build src/ -t src
+	uv run pytest --cov=src

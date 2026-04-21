@@ -1,23 +1,12 @@
 import logging
-import logging.config
+import sys
 
 
-def setup_logging(verbose: bool = False):
-    """
-    setup logging config by updating the arq logging config
-    """
-    log_level = 'DEBUG' if verbose else 'INFO'
-    config = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {'tcav': {'format': '%(levelname)s %(name)s %(message)s'}},
-        'handlers': {
-            'tcav': {'level': log_level, 'class': 'logging.StreamHandler', 'formatter': 'tcav'},
-            'sentry': {'level': 'WARNING', 'class': 'sentry_sdk.integrations.logging.SentryHandler'},
-        },
-        'loggers': {
-            'tcav': {'handlers': ['tcav', 'sentry'], 'level': log_level},
-            'uvicorn.error': {'handlers': ['sentry'], 'level': 'ERROR'},
-        },
-    }
-    logging.config.dictConfig(config)
+def configure_logging() -> None:
+    """Configure stdlib logging so uvicorn and our own logger write to stdout at INFO."""
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s: %(message)s', datefmt='%H:%M:%S'))
+    root.addHandler(handler)

@@ -1,0 +1,15 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint
+        name: Lint
+        entry: bash -c 'uv run ruff check . && uv run ruff format --check .'
+        types: [python]
+        language: system
+        pass_filenames: false
+      - id: type-check
+        name: Type Check (ty)
+        entry: uv run ty check .
+        types: [python]
+        language: system
+        pass_filenames: false
