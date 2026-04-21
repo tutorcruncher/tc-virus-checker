@@ -43,13 +43,16 @@ def _clamdscan_cmd(*args: str) -> list[str]:
     return cmd
 
 
-async def _wait_for_clamd(timeout_s: int = 90) -> None:
+async def _wait_for_clamd(timeout_s: int = 120) -> None:
     """Poll clamd until --ping succeeds or we hit timeout."""
     for attempt in range(timeout_s):
-        result = subprocess.run(_clamdscan_cmd('--ping', '1'), capture_output=True, timeout=5)
-        if result.returncode == 0:
-            logger.info('clamd ready after %ds', attempt)
-            return
+        try:
+            result = subprocess.run(_clamdscan_cmd('--ping', '1'), capture_output=True, timeout=3)
+            if result.returncode == 0:
+                logger.info('clamd ready after %ds', attempt)
+                return
+        except subprocess.TimeoutExpired:
+            pass
         await asyncio.sleep(1)
     logger.error('clamd did not become ready within %ds', timeout_s)
 
