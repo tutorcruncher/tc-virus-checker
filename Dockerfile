@@ -10,7 +10,10 @@ RUN apt-get update \
         clamav-daemon \
         clamav-freshclam \
         clamdscan \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    # Pre-download the signature DB so clamd can start immediately on boot.
+    # freshclam -d at runtime will keep it updated.
+    && freshclam
 
 WORKDIR /app
 
