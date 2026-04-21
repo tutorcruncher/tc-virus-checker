@@ -5,13 +5,15 @@ import logging
 import os
 import re
 import subprocess
+from pathlib import Path
 from secrets import compare_digest
 
 import boto3
+import logfire
 import sentry_sdk
+from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException
-from pydantic.main import BaseModel
-from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+from pydantic import BaseModel
 from starlette.responses import FileResponse
 
 from .settings import Settings
@@ -20,15 +22,19 @@ tc_av_app = FastAPI()
 settings = Settings()
 
 logger = logging.getLogger('tcav')
-try:
-    os.mkdir('tmp')
-except FileExistsError:
-    pass
+Path('tmp').mkdir(exist_ok=True)
 
+if dsn := (settings.sentry_dsn or settings.raven_dsn):
+    sentry_sdk.init(dsn=dsn, environment=settings.environment)
 
-if dsn := settings.raven_dsn:
-    sentry_sdk.init(dsn=dsn)
-    tc_av_app.add_middleware(SentryAsgiMiddleware)
+if settings.logfire_token:
+    logfire.configure(
+        token=settings.logfire_token,
+        environment=settings.environment,
+        service_name='tc-virus-checker',
+        scrubbing=False,
+    )
+    logfire.instrument_fastapi(tc_av_app)
 
 
 @tc_av_app.get('/')
@@ -47,7 +53,7 @@ class DocumentRequest(BaseModel):
     signature: str
 
     @property
-    def payload(self):
+    def payload(self) -> bytes:
         return json.dumps({'bucket': self.bucket, 'key': self.key}).encode()
 
 
@@ -59,7 +65,7 @@ def _check_file(file_path: str, key: str) -> tuple[list, str]:
     output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
     tags = []
     try:
-        virus_msg = re.search(rf'{file_path}: (.*?)\n', output).group(1)
+        virus_msg = re.search(rf'{file_path}: (.*?)\n', output).group(1)  # ty: ignore[unresolved-attribute]
     except AttributeError:
         logger.error('No virus msg found in output, file_path: "%s", output: "%s"', file_path, output)
         status = 'error'
@@ -79,27 +85,35 @@ def _check_file(file_path: str, key: str) -> tuple[list, str]:
 
 @tc_av_app.post('/check/')
 async def check_document(data: DocumentRequest):
+    assert settings.shared_secret_key, 'SHARED_SECRET_KEY is not set'
     payload_sig = hmac.new(settings.shared_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
     if not compare_digest(payload_sig, data.signature):
         raise HTTPException(status_code=403, detail='Invalid signature')
-    if settings.aws_secret_access_key and settings.aws_access_key_id:
-        s3_client = boto3.client(
-            's3', aws_access_key_id=settings.aws_access_key_id, aws_secret_access_key=settings.aws_secret_access_key
-        )
-    else:
+    if not (settings.aws_secret_access_key and settings.aws_access_key_id):
         return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=settings.aws_access_key_id,
+        aws_secret_access_key=settings.aws_secret_access_key,
+    )
     file_path = f'tmp/{data.key.replace("/", "-")}'
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
 
     tags, status = _check_file(file_path, data.key)
     if tags:
-        s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
+        try:
+            s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
+        except ClientError as e:
+            # Deleted objects in versioned buckets (delete markers) reject PutObjectTagging with
+            # MethodNotAllowed. The scan itself succeeded, so surface it without failing the request.
+            error_code = e.response.get('Error', {}).get('Code')
+            logger.warning('Failed to tag %s (code=%s): %s', data.key, error_code, e)
+            status = f'{status}-untagged'
     try:
         os.remove(file_path)
     except FileNotFoundError:
         status = 'File not found'
-    finally:
-        return {'status': status}
+    return {'status': status}
 
 
 @tc_av_app.get('/health/')

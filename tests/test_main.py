@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import boto3
+from botocore.exceptions import ClientError
 
 from src.app.main import settings
 
@@ -82,6 +83,30 @@ def test_check_removed_file(mock_remove, client, monkeypatch):
         r = client.post('/check/', json={'signature': sig, **payload})
         assert r.status_code == 200
         assert r.json() == {'status': 'File not found'}
+
+
+class TagFailingClient(MockClient):
+    def put_object_tagging(self, **kwargs):
+        raise ClientError(
+            {'Error': {'Code': 'MethodNotAllowed', 'Message': 'not allowed'}},
+            'PutObjectTagging',
+        )
+
+
+class MockCleanRun:
+    def __init__(self, *args, **kwargs):
+        file_path = args[0].rsplit(' ', 1)[-1]
+        self.stdout = f'{file_path}: OK\n'.encode()
+
+
+def test_check_tag_method_not_allowed(client, monkeypatch):
+    monkeypatch.setattr(boto3, 'client', TagFailingClient)
+    monkeypatch.setattr(subprocess, 'run', MockCleanRun)
+    payload = {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'}
+    sig = hmac.new(settings.shared_secret_key.encode(), json.dumps(payload).encode(), hashlib.sha1).hexdigest()
+    r = client.post('/check/', json={'signature': sig, **payload})
+    assert r.status_code == 200
+    assert r.json() == {'status': 'clean-untagged'}
 
 
 class MockRun:

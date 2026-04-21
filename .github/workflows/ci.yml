@@ -13,44 +13,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: set up python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
 
-    - name: Update apt
-      run: sudo apt-get update
+      - name: install clamav
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clamav clamav-daemon
+          sudo systemctl stop clamav-freshclam || true
+          sudo freshclam
+          sudo systemctl start clamav-daemon
+          sudo systemctl status clamav-daemon --no-pager || true
 
-    - name: install dependencies
-      run: |
-        sudo apt install systemd clamav clamav-daemon
-        sudo systemctl stop clamav-daemon.service
-        sudo rm /var/log/clamav/freshclam.log
-        sudo systemctl start clamav-daemon.service
-        sudo freshclam
-        sudo service clamav-daemon restart
-        sudo freshclam
-        make install
-        pip freeze
-    - name: lint
-      run: make lint
+      - name: install dependencies
+        run: uv sync --dev
 
-    - name: Wait for clamd service to start
-      uses: jakejarvis/wait-action@v0.1.0
-      with:
-        time: '5'
+      - name: lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run ty check .
 
-    - run: sudo service clamav-daemon status
+      - name: wait for clamd
+        run: sleep 60
 
-    - name: test
-      run: make test
+      - name: test
+        run: uv run pytest --cov=src
 
-    - name: codecov
-      run: bash <(curl -s https://codecov.io/bash)
-      env:
-        CODECOV_TOKEN: 'ee51eef9-8de5-4855-9be4-a5cf55257a73'
+      - name: codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   deploy:
     needs:
