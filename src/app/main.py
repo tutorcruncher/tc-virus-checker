@@ -24,8 +24,8 @@ settings = Settings()
 logger = logging.getLogger('tcav')
 Path('tmp').mkdir(exist_ok=True)
 
-if dsn := (settings.sentry_dsn or settings.raven_dsn):
-    sentry_sdk.init(dsn=dsn, environment=settings.environment)
+if settings.sentry_dsn:
+    sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
 
 if settings.logfire_token:
     logfire.configure(
@@ -57,6 +57,16 @@ class DocumentRequest(BaseModel):
         return json.dumps({'bucket': self.bucket, 'key': self.key}).encode()
 
 
+def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
+    """Return True if the object has been deleted (delete marker or missing)."""
+    try:
+        s3_client.head_object(Bucket=bucket, Key=key)
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code')
+        return error_code in ('NoSuchKey', '404', 'NotFound')
+    return False
+
+
 def _check_file(file_path: str, key: str) -> tuple[list, str]:
     if settings.live:
         cmd = f'clamdscan {file_path}'
@@ -86,11 +96,11 @@ def _check_file(file_path: str, key: str) -> tuple[list, str]:
 @tc_av_app.post('/check/')
 async def check_document(data: DocumentRequest):
     assert settings.shared_secret_key, 'SHARED_SECRET_KEY is not set'
+    assert settings.aws_access_key_id, 'AWS_ACCESS_KEY_ID is not set'
+    assert settings.aws_secret_access_key, 'AWS_SECRET_KEY is not set'
     payload_sig = hmac.new(settings.shared_secret_key.encode(), data.payload, hashlib.sha1).hexdigest()
     if not compare_digest(payload_sig, data.signature):
         raise HTTPException(status_code=403, detail='Invalid signature')
-    if not (settings.aws_secret_access_key and settings.aws_access_key_id):
-        return {'error': 'Env variables aws_access_key_id and aws_secret_access_key is unset'}
     s3_client = boto3.client(
         's3',
         aws_access_key_id=settings.aws_access_key_id,
@@ -104,10 +114,11 @@ async def check_document(data: DocumentRequest):
         try:
             s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
         except ClientError as e:
-            # Deleted objects in versioned buckets (delete markers) reject PutObjectTagging with
-            # MethodNotAllowed. The scan itself succeeded, so surface it without failing the request.
-            error_code = e.response.get('Error', {}).get('Code')
-            logger.warning('Failed to tag %s (code=%s): %s', data.key, error_code, e)
+            # Tagging a delete marker (object deleted in a versioned bucket between download and
+            # tagging) raises MethodNotAllowed. Confirm the object really is gone; otherwise re-raise.
+            if not _object_is_deleted(s3_client, data.bucket, data.key):
+                raise
+            logger.warning('Object %s was deleted before it could be tagged: %s', data.key, e)
             status = f'{status}-untagged'
     try:
         os.remove(file_path)

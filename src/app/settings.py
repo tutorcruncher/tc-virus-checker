@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
     shared_secret_key: Optional[str] = None
-    raven_dsn: Optional[str] = None
     sentry_dsn: Optional[str] = None
     logfire_token: Optional[str] = None
     environment: str = 'dev'

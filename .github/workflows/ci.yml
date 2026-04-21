@@ -39,7 +39,17 @@ jobs:
           uv run ty check .
 
       - name: wait for clamd
-        run: sleep 60
+        run: |
+          for i in {1..30}; do
+            if sudo clamdscan --ping 1 >/dev/null 2>&1; then
+              echo "clamd ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "clamd did not become ready" >&2
+          sudo systemctl status clamav-daemon --no-pager || true
+          exit 1
 
       - name: test
         run: uv run pytest --cov=src
