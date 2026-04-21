@@ -15,6 +15,7 @@ import sentry_sdk
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from sentry_sdk.integrations.logging import LoggingIntegration
 from starlette.responses import FileResponse
 
 from .settings import Settings
@@ -40,7 +41,12 @@ async def lifespan(app: FastAPI):
 tc_av_app = FastAPI(lifespan=lifespan)
 
 if settings.sentry_dsn:
-    sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        # Breadcrumbs for INFO+, capture warnings and above as Sentry events.
+        integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.WARNING)],
+    )
 
 if settings.logfire_token:
     logfire.configure(
@@ -50,6 +56,9 @@ if settings.logfire_token:
         scrubbing=False,
     )
     logfire.instrument_fastapi(tc_av_app)
+    # Forward stdlib logging (logger.info/warning/error) to Logfire.
+    logger.addHandler(logfire.LogfireLoggingHandler())
+    logger.setLevel(logging.INFO)
 
 
 @tc_av_app.get('/')
