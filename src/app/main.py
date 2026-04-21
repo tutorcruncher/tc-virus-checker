@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import json
@@ -18,23 +19,55 @@ from pydantic import BaseModel
 from sentry_sdk.integrations.logging import LoggingIntegration
 from starlette.responses import FileResponse
 
+from .logs import configure_logging
 from .settings import Settings
+
+configure_logging()
 
 settings = Settings()
 logger = logging.getLogger('tcav')
 Path('tmp').mkdir(exist_ok=True)
 
+CLAMD_CONFIG = 'src/clamd.conf'
+
+
+def _clamdscan_cmd(*args: str) -> list[str]:
+    """Build a clamdscan argv. In live mode we point it at our bundled clamd.conf so it
+    talks to the clamd we started in the lifespan (which listens on /tmp/clamd.socket)."""
+    cmd = ['clamdscan']
+    if settings.live:
+        cmd.append(f'--config-file={CLAMD_CONFIG}')
+    else:
+        cmd.append('--fdpass')
+    cmd.extend(args)
+    return cmd
+
+
+async def _wait_for_clamd(timeout_s: int = 90) -> None:
+    """Poll clamd until --ping succeeds or we hit timeout."""
+    for attempt in range(timeout_s):
+        result = subprocess.run(_clamdscan_cmd('--ping', '1'), capture_output=True, timeout=5)
+        if result.returncode == 0:
+            logger.info('clamd ready after %ds', attempt)
+            return
+        await asyncio.sleep(1)
+    logger.error('clamd did not become ready within %ds', timeout_s)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # In production Render hosts the app behind a plain uvicorn process; nothing else
-    # starts clamd or keeps signatures fresh. freshclam -d runs as a daemon and checks
-    # for signature updates every few hours; clamd exposes the scanning socket used by
-    # clamdscan. Skipped in dev/test where clamd is usually started by the OS/service.
+    # Fail fast on a misconfigured deploy instead of 500ing on the first request.
+    assert settings.shared_secret_key, 'SHARED_SECRET_KEY is not set'
+    assert settings.aws_access_key_id, 'AWS_ACCESS_KEY_ID is not set'
+    assert settings.aws_secret_access_key, 'AWS_SECRET_KEY is not set'
     if settings.live:
+        # Render's plain uvicorn process is the only thing running; we have to start
+        # clamd and keep signatures fresh ourselves. freshclam -d polls for DB updates;
+        # clamd serves clamdscan over /tmp/clamd.socket (see src/clamd.conf).
         logger.info('Starting freshclam daemon and clamd')
         subprocess.Popen(['freshclam', '-d'])
-        subprocess.Popen(['clamd'])
+        subprocess.Popen(['clamd', '-c', CLAMD_CONFIG])
+        await _wait_for_clamd()
     yield
 
 
@@ -56,9 +89,7 @@ if settings.logfire_token:
         scrubbing=False,
     )
     logfire.instrument_fastapi(tc_av_app)
-    # Forward stdlib logging (logger.info/warning/error) to Logfire.
     logger.addHandler(logfire.LogfireLoggingHandler())
-    logger.setLevel(logging.INFO)
 
 
 @tc_av_app.get('/')
@@ -92,14 +123,10 @@ def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
 
 
 def _check_file(file_path: str, key: str) -> tuple[list, str]:
-    if settings.live:
-        cmd = f'clamdscan {file_path}'
-    else:
-        cmd = f'clamdscan --fdpass {file_path}'
-    output = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE).stdout.decode()
+    output = subprocess.run(_clamdscan_cmd(file_path), stdout=subprocess.PIPE).stdout.decode()
     tags = []
     try:
-        virus_msg = re.search(rf'{file_path}: (.*?)\n', output).group(1)  # ty: ignore[unresolved-attribute]
+        virus_msg = re.search(rf'{re.escape(file_path)}: (.*?)\n', output).group(1)  # ty: ignore[unresolved-attribute]
     except AttributeError:
         logger.error('No virus msg found in output, file_path: "%s", output: "%s"', file_path, output)
         status = 'error'
@@ -153,7 +180,7 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    result = subprocess.run(['clamdscan', '--ping', '1'], capture_output=True)
+    result = subprocess.run(_clamdscan_cmd('--ping', '1'), capture_output=True)
     if result.returncode != 0:
         raise HTTPException(status_code=503, detail='clamd is not responding')
     return {'status': 'ok'}

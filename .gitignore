@@ -4,3 +4,7 @@ env
 tmp
 .coverage
 .DS_Store
+.venv
+.pytest_cache
+.ruff_cache
+.claude
