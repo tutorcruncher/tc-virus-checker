@@ -9,6 +9,7 @@ RUN apt-get update \
         clamav \
         clamav-daemon \
         clamav-freshclam \
+        clamdscan \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
