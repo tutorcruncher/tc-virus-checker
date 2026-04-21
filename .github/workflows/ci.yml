@@ -30,13 +30,10 @@ jobs:
           sudo systemctl status clamav-daemon --no-pager || true
 
       - name: install dependencies
-        run: uv sync --dev
+        run: make install
 
       - name: lint
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-          uv run ty check .
+        run: make lint
 
       - name: wait for clamd
         run: |
@@ -52,7 +49,7 @@ jobs:
           exit 1
 
       - name: test
-        run: uv run pytest --cov=src
+        run: make test
 
       - name: codecov
         uses: codecov/codecov-action@v5
