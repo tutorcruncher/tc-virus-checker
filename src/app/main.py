@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import subprocess
+from contextlib import asynccontextmanager
 from pathlib import Path
 from secrets import compare_digest
 
@@ -18,11 +19,25 @@ from starlette.responses import FileResponse
 
 from .settings import Settings
 
-tc_av_app = FastAPI()
 settings = Settings()
-
 logger = logging.getLogger('tcav')
 Path('tmp').mkdir(exist_ok=True)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # In production Render hosts the app behind a plain uvicorn process; nothing else
+    # starts clamd or keeps signatures fresh. freshclam -d runs as a daemon and checks
+    # for signature updates every few hours; clamd exposes the scanning socket used by
+    # clamdscan. Skipped in dev/test where clamd is usually started by the OS/service.
+    if settings.live:
+        logger.info('Starting freshclam daemon and clamd')
+        subprocess.Popen(['freshclam', '-d'])
+        subprocess.Popen(['clamd'])
+    yield
+
+
+tc_av_app = FastAPI(lifespan=lifespan)
 
 if settings.sentry_dsn:
     sentry_sdk.init(dsn=settings.sentry_dsn, environment=settings.environment)
