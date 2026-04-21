@@ -24,9 +24,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clamav clamav-daemon
-          sudo systemctl stop clamav-freshclam || true
-          sudo freshclam
-          sudo systemctl start clamav-daemon
+          # The apt post-install triggers freshclam once. Hitting it again hits a 429
+          # from the ClamAV CDN ("no more than once an hour"), so wait for the DB files
+          # the first run produced instead of invoking freshclam ourselves.
+          sudo systemctl enable --now clamav-freshclam || true
+          for i in {1..60}; do
+            if ls /var/lib/clamav/main.c[vl]d >/dev/null 2>&1; then
+              echo "signature DB present after ${i}s"
+              break
+            fi
+            sleep 2
+          done
+          if ! ls /var/lib/clamav/main.c[vl]d >/dev/null 2>&1; then
+            echo "freshclam never produced a signature DB" >&2
+            sudo journalctl -u clamav-freshclam --no-pager | tail -50
+            exit 1
+          fi
+          sudo systemctl restart clamav-daemon
           sudo systemctl status clamav-daemon --no-pager || true
 
       - name: install dependencies
