@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import subprocess
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from secrets import compare_digest
@@ -127,13 +128,15 @@ async def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
 
 
 async def _check_file(file_path: str, key: str) -> tuple[list, str]:
+    start = time.monotonic()
     try:
         result = await asyncio.to_thread(
             subprocess.run, _clamdscan_cmd(file_path), stdout=subprocess.PIPE, timeout=CLAMDSCAN_TIMEOUT_S
         )
     except subprocess.TimeoutExpired:
-        logger.warning('clamdscan timed out on %s', key)
+        logger.warning('clamdscan timed out on %s after %.2fs', key, time.monotonic() - start)
         return [], 'timeout'
+    logger.info('clamdscan on %s took %.2fs', key, time.monotonic() - start)
     output = result.stdout.decode()
     tags = []
     try:
