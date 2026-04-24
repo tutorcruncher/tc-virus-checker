@@ -29,4 +29,4 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn src.app.main:tc_av_app --host=0.0.0.0 --port=${PORT}"]
+CMD ["sh", "-c", "uvicorn src.app.main:tc_av_app --host=0.0.0.0 --port=${PORT} --workers 2"]

@@ -29,6 +29,7 @@ logger = logging.getLogger('tcav')
 Path('tmp').mkdir(exist_ok=True)
 
 CLAMD_CONFIG = 'src/clamd.conf'
+CLAMDSCAN_TIMEOUT_S = 60
 
 
 def _clamdscan_cmd(*args: str) -> list[str]:
@@ -115,18 +116,25 @@ class DocumentRequest(BaseModel):
         return json.dumps({'bucket': self.bucket, 'key': self.key}).encode()
 
 
-def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
+async def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
     """Return True if the object has been deleted (delete marker or missing)."""
     try:
-        s3_client.head_object(Bucket=bucket, Key=key)
+        await asyncio.to_thread(s3_client.head_object, Bucket=bucket, Key=key)
     except ClientError as e:
         error_code = e.response.get('Error', {}).get('Code')
         return error_code in ('NoSuchKey', '404', 'NotFound')
     return False
 
 
-def _check_file(file_path: str, key: str) -> tuple[list, str]:
-    output = subprocess.run(_clamdscan_cmd(file_path), stdout=subprocess.PIPE).stdout.decode()
+async def _check_file(file_path: str, key: str) -> tuple[list, str]:
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run, _clamdscan_cmd(file_path), stdout=subprocess.PIPE, timeout=CLAMDSCAN_TIMEOUT_S
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning('clamdscan timed out on %s', key)
+        return [], 'timeout'
+    output = result.stdout.decode()
     tags = []
     try:
         virus_msg = re.search(rf'{re.escape(file_path)}: (.*?)\n', output).group(1)  # ty: ignore[unresolved-attribute]
@@ -161,16 +169,18 @@ async def check_document(data: DocumentRequest):
         aws_secret_access_key=settings.aws_secret_access_key,
     )
     file_path = f'tmp/{data.key.replace("/", "-")}'
-    s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
+    await asyncio.to_thread(s3_client.download_file, Bucket=data.bucket, Key=data.key, Filename=file_path)
 
-    tags, status = _check_file(file_path, data.key)
+    tags, status = await _check_file(file_path, data.key)
     if tags:
         try:
-            s3_client.put_object_tagging(Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags})
+            await asyncio.to_thread(
+                s3_client.put_object_tagging, Bucket=data.bucket, Key=data.key, Tagging={'TagSet': tags}
+            )
         except ClientError as e:
             # Tagging a delete marker (object deleted in a versioned bucket between download and
             # tagging) raises MethodNotAllowed. Confirm the object really is gone; otherwise re-raise.
-            if not _object_is_deleted(s3_client, data.bucket, data.key):
+            if not await _object_is_deleted(s3_client, data.bucket, data.key):
                 raise
             logger.warning('Object %s was deleted before it could be tagged: %s', data.key, e)
             status = f'{status}-untagged'
@@ -183,7 +193,7 @@ async def check_document(data: DocumentRequest):
 
 @tc_av_app.get('/health/')
 async def health():
-    result = subprocess.run(_clamdscan_cmd('--ping', '1'), capture_output=True)
+    result = await asyncio.to_thread(subprocess.run, _clamdscan_cmd('--ping', '1'), capture_output=True)
     if result.returncode != 0:
         raise HTTPException(status_code=503, detail='clamd is not responding')
     return {'status': 'ok'}
