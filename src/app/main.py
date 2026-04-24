@@ -137,7 +137,7 @@ async def _check_file(file_path: str, key: str) -> tuple[list, str]:
         logger.warning('clamdscan timed out on %s after %.2fs', key, time.monotonic() - start)
         return [], 'timeout'
     logger.info('clamdscan on %s took %.2fs', key, time.monotonic() - start)
-    output = result.stdout.decode()
+    output = result.stdout.decode()  # ty: ignore[unresolved-attribute]
     tags = []
     try:
         virus_msg = re.search(rf'{re.escape(file_path)}: (.*?)\n', output).group(1)  # ty: ignore[unresolved-attribute]
