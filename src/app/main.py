@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import subprocess
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from secrets import compare_digest
@@ -29,6 +30,7 @@ logger = logging.getLogger('tcav')
 Path('tmp').mkdir(exist_ok=True)
 
 CLAMD_CONFIG = 'src/clamd.conf'
+CLAMDSCAN_TIMEOUT_S = 60
 
 
 def _clamdscan_cmd(*args: str) -> list[str]:
@@ -126,7 +128,14 @@ def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
 
 
 def _check_file(file_path: str, key: str) -> tuple[list, str]:
-    output = subprocess.run(_clamdscan_cmd(file_path), stdout=subprocess.PIPE).stdout.decode()
+    start = time.monotonic()
+    try:
+        result = subprocess.run(_clamdscan_cmd(file_path), stdout=subprocess.PIPE, timeout=CLAMDSCAN_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        logger.warning('clamdscan timed out on %s after %.2fs', key, time.monotonic() - start)
+        return [], 'timeout'
+    logger.info('clamdscan on %s took %.2fs', key, time.monotonic() - start)
+    output = result.stdout.decode()
     tags = []
     try:
         virus_msg = re.search(rf'{re.escape(file_path)}: (.*?)\n', output).group(1)  # ty: ignore[unresolved-attribute]
@@ -148,7 +157,7 @@ def _check_file(file_path: str, key: str) -> tuple[list, str]:
 
 
 @tc_av_app.post('/check/')
-async def check_document(data: DocumentRequest):
+def check_document(data: DocumentRequest):
     assert settings.shared_secret_key, 'SHARED_SECRET_KEY is not set'
     assert settings.aws_access_key_id, 'AWS_ACCESS_KEY_ID is not set'
     assert settings.aws_secret_access_key, 'AWS_SECRET_KEY is not set'
@@ -182,7 +191,7 @@ async def check_document(data: DocumentRequest):
 
 
 @tc_av_app.get('/health/')
-async def health():
+def health():
     result = subprocess.run(_clamdscan_cmd('--ping', '1'), capture_output=True)
     if result.returncode != 0:
         raise HTTPException(status_code=503, detail='clamd is not responding')

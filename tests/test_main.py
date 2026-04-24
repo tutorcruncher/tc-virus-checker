@@ -151,6 +151,21 @@ def test_check_error_file(client, monkeypatch):
     assert r.json() == {'status': 'error'}
 
 
+def test_check_timeout(client, monkeypatch):
+    monkeypatch.setattr(boto3, 'client', MockClient)
+
+    def fake_run(cmd, *args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd, kwargs.get('timeout', 60))
+
+    monkeypatch.setattr(subprocess, 'run', fake_run)
+    tag_calls = []
+    monkeypatch.setattr(MockClient, 'put_object_tagging', lambda self, **kw: tag_calls.append(kw))
+    r = _post_check(client, {'bucket': 'aws_bucket', 'key': 'tests/files/clean_file'})
+    assert r.status_code == 200
+    assert r.json() == {'status': 'timeout'}
+    assert tag_calls == []
+
+
 def test_health_ok(client, monkeypatch):
     monkeypatch.setattr(subprocess, 'run', MockRun(returncode=0))
     r = client.get('/health/')
