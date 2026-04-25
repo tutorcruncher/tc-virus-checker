@@ -14,6 +14,7 @@ from secrets import compare_digest
 import boto3
 import logfire
 import sentry_sdk
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -31,6 +32,9 @@ Path('tmp').mkdir(exist_ok=True)
 
 CLAMD_CONFIG = 'src/clamd.conf'
 CLAMDSCAN_TIMEOUT_S = 60
+# Bound S3 calls so a stalled connection bails before TC2's gunicorn worker timeout
+# (45s) kicks in. Default boto3 is 60s connect + 60s read with retries.
+S3_CONFIG = Config(connect_timeout=5, read_timeout=15, retries={'max_attempts': 2, 'mode': 'standard'})
 
 
 def _clamdscan_cmd(*args: str) -> list[str]:
@@ -168,9 +172,12 @@ def check_document(data: DocumentRequest):
         's3',
         aws_access_key_id=settings.aws_access_key_id,
         aws_secret_access_key=settings.aws_secret_access_key,
+        config=S3_CONFIG,
     )
     file_path = f'tmp/{data.key.replace("/", "-")}'
+    download_start = time.monotonic()
     s3_client.download_file(Bucket=data.bucket, Key=data.key, Filename=file_path)
+    logger.info('s3 download of %s took %.2fs', data.key, time.monotonic() - download_start)
 
     tags, status = _check_file(file_path, data.key)
     if tags:
