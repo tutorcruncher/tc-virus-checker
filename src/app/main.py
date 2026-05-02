@@ -132,13 +132,20 @@ def _object_is_deleted(s3_client, bucket: str, key: str) -> bool:
 
 
 def _check_file(file_path: str, key: str) -> tuple[list, str]:
-    start = time.monotonic()
     try:
-        result = subprocess.run(_clamdscan_cmd(file_path), stdout=subprocess.PIPE, timeout=CLAMDSCAN_TIMEOUT_S)
-    except subprocess.TimeoutExpired:
-        logger.warning('clamdscan timed out on %s after %.2fs', key, time.monotonic() - start)
-        return [], 'timeout'
-    logger.info('clamdscan on %s took %.2fs', key, time.monotonic() - start)
+        file_size = os.path.getsize(file_path)
+    except OSError:
+        file_size = -1
+    start = time.monotonic()
+    # Span duration + file_size lets us correlate slow scans against file characteristics
+    # in Logfire, which was the missing data needed to debug issue #383.
+    with logfire.span('clamdscan', key=key, file_size=file_size):
+        try:
+            result = subprocess.run(_clamdscan_cmd(file_path), stdout=subprocess.PIPE, timeout=CLAMDSCAN_TIMEOUT_S)
+        except subprocess.TimeoutExpired:
+            logger.warning('clamdscan timed out on %s after %.2fs (size=%d)', key, time.monotonic() - start, file_size)
+            return [], 'timeout'
+    logger.info('clamdscan on %s took %.2fs (size=%d)', key, time.monotonic() - start, file_size)
     output = result.stdout.decode()
     tags = []
     try:
